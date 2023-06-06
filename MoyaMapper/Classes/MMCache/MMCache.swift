@@ -15,7 +15,6 @@ fileprivate struct CacheName {
     static let JSON = "MMCache.lxf.JSON"
 }
 
-
 public struct MMCache {
     public static let shared = MMCache()
     private init() {}
@@ -25,16 +24,16 @@ public struct MMCache {
         case hybrid
     }
     
-    internal let boolRAMStorage = MemoryStorage<Bool>(config: MemoryConfig())
-    internal let jsonRAMStorage = MemoryStorage<JSON>(config: MemoryConfig())
+    internal let boolRAMStorage = MemoryStorage<String, Bool>(config: MemoryConfig())
+    internal let jsonRAMStorage = MemoryStorage<String, JSON>(config: MemoryConfig())
     
-    internal let responseStorage = try? Storage<Moya.Response>(
+    internal let responseStorage = try? Storage<String, Moya.Response>(
         diskConfig: DiskConfig(name: CacheName.MoyaResponse),
         memoryConfig: MemoryConfig(),
         transformer: TransformerFactory.forResponse(Moya.Response.self)
     )
     
-    internal let jsonStorage = try? Storage<JSON>(
+    internal let jsonStorage = try? Storage<String, JSON>(
         diskConfig: DiskConfig(name: CacheName.JSON),
         memoryConfig: MemoryConfig(),
         transformer: TransformerFactory.forJSON()

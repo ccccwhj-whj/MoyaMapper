@@ -22,13 +22,12 @@ public extension Reactive where Base: MoyaProviderType {
      - 适用于APP首页数据缓存
      
      */
-    func cacheRequest(
+   func cacheRequest(
         _ target: Base.Target,
         alwaysFetchCache: Bool = false,
         callbackQueue: DispatchQueue? = nil,
         cacheType: MMCache.CacheKeyType = .default
     ) -> Observable<Response> {
-        
         var originRequest = request(target, callbackQueue: callbackQueue).asObservable()
         var cacheResponse: Response? = nil
         
@@ -37,14 +36,14 @@ public extension Reactive where Base: MoyaProviderType {
         } else {
             if MMCache.shared.isNoRecord(target, cacheType: cacheType) {
                 MMCache.shared.record(target)
-                cacheResponse = MMCache.shared.fetchResponseCache(target: target)
+                cacheResponse = MMCache.shared.fetchResponseCache(target: target, cacheKey: cacheType)
             }
         }
         
         // 更新缓存
         originRequest = originRequest.map { response -> Response in
             if let resp = try? response.filterSuccessfulStatusCodes() {
-                MMCache.shared.cacheResponse(resp, target: target)
+                MMCache.shared.cacheResponse(resp, target: target, cacheKey: cacheType)
             }
             return response
         }
