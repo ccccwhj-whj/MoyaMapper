@@ -18,37 +18,39 @@ public extension MoyaProviderType {
      
      */
     func cacheRequest(
-        _ target: Target,
+        _ target: Base.Target,
         alwaysFetchCache: Bool = false,
-        cacheType: MMCache.CacheKeyType = .default,
+        cacheOnly: Bool = false, // 新增参数，决定是否只读取缓存
         callbackQueue: DispatchQueue? = nil,
-        progress: Moya.ProgressBlock? = nil,
-        completion: @escaping Moya.Completion
-    ) -> Cancellable {
-        
-        let cache = MMCache.shared.fetchResponseCache(target: target)
-        
-        if alwaysFetchCache && cache != nil {
-            completion(.success(cache!))
+        cacheType: MMCache.CacheKeyType = .default
+    ) -> Observable<Response> {
+        var originRequest = request(target, callbackQueue: callbackQueue).asObservable()
+        var cacheResponse: Response? = nil
+
+        if alwaysFetchCache || cacheOnly {
+            cacheResponse = MMCache.shared.fetchResponseCache(target: target)
         } else {
             if MMCache.shared.isNoRecord(target, cacheType: cacheType) {
                 MMCache.shared.record(target)
-                if cache != nil {
-                    completion(.success(cache!))
-                }
+                cacheResponse = MMCache.shared.fetchResponseCache(target: target, cacheKey: cacheType)
             }
         }
-        
-        return self.request(target, callbackQueue: callbackQueue, progress: progress) { result in
-            switch result {
-            case let .success(response):
-                if let resp = try? response.filterSuccessfulStatusCodes() {
-                    // 更新缓存
-                    MMCache.shared.cacheResponse(resp, target: target)
-                }
-            default: break
-            }
-            completion(result)
+
+        // 如果 `cacheOnly == true`，只返回缓存，不执行网络请求
+        if cacheOnly, let cached = cacheResponse {
+            return Observable.just(cached)
         }
+
+        // 更新缓存
+        originRequest = originRequest.map { response -> Response in
+            if let resp = try? response.filterSuccessfulStatusCodes() {
+                MMCache.shared.cacheResponse(resp, target: target, cacheKey: cacheType)
+            }
+            return response
+        }
+
+        guard let lxf_cacheResponse = cacheResponse else { return originRequest }
+        return Observable.just(lxf_cacheResponse).concat(originRequest)
     }
+
 }
